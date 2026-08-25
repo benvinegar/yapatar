@@ -1,0 +1,13 @@
+{
+  "name": "yapper",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "render": "node src/render.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.8"
+  },
+  "description": "Voice-reactive avatar overlay with a transparent background, for screencasts",
+  "license": "MIT"
+}
