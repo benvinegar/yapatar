@@ -98,6 +98,23 @@ Every one of these matches a slider in `preview.html`, which prints the exact co
 for your current settings with a copy button — tune visually, paste, render.
 ```
 
+### Alpha: premultiplied vs straight
+
+```
+--alpha premultiplied   # default
+--alpha straight
+```
+
+Canvas2D produces **straight** alpha, but Resolve (and most NLEs) composite as
+**premultiplied** by default. Handing straight data to a premultiplied compositor *adds* the
+full-brightness colour instead of scaling it, so soft glows blow out to a solid white blob
+around the avatar. Yapatar therefore premultiplies on the way out by default, which is what
+your NLE expects.
+
+If you already have a render that shows a white halo, you don't have to re-render: in
+Resolve, right-click the clip -> **Clip Attributes -> Alpha Mode -> Straight**. Use
+`--alpha straight` if you specifically want that workflow.
+
 ### Codec choice
 
 Measured on 18.9 s @ 512×512 / 30 fps:

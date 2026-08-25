@@ -80,11 +80,19 @@ rendering a long take as ProRes.
 ## Options
 
 `--audio` `--avatar` `--outdir` `--fps` `--size` `--codec` `--gain` `--range` `--style`
-`--preset` `--colorA` `--colorB` `--hueA` `--hueB` `--bounce` `--glow` `--blob`
+`--preset` `--colorA` `--colorB` `--hueA` `--hueB` `--bounce` `--glow` `--blob` `--alpha`
 `--no-preview` `--settings <path>`
 
 Point `--audio` at the screen recording itself if the voice is in it — ffmpeg extracts the
 audio, which also guarantees sync.
+
+## Alpha
+
+Output is **premultiplied** by default, because Resolve and most NLEs composite that way.
+If the user reports a **white halo or a glowing blob** around the avatar, that is straight
+alpha being composited as premultiplied. Either re-render with the default `--alpha
+premultiplied`, or tell them to set Clip Attributes -> Alpha Mode -> Straight in Resolve.
+A dark or muddy halo is the opposite mismatch: try `--alpha straight`.
 
 ## Notes
 

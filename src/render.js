@@ -43,16 +43,22 @@ const STYLE  = arg('style', 'pulse');
 const PRESET = arg('preset', null);
 const COLOR_A = arg('colorA', null);
 const COLOR_B = arg('colorB', null);
+// Most NLEs (Resolve included) composite alpha as PREMULTIPLIED by default.
+// Canvas2D produces STRAIGHT alpha, and handing straight data to a premultiplied
+// compositor adds the full-brightness colour on top instead of scaling it, which
+// blows soft glows out to white. So we premultiply on the way out by default.
+const ALPHA  = arg('alpha', 'premultiplied');
 
 if (!existsSync(AUDIO)) { console.error(`no such audio: ${AUDIO}`); process.exit(1); }
 if (!STYLES[STYLE]) { console.error(`--style must be one of: ${Object.keys(STYLES).join(', ')}`); process.exit(1); }
 if (PRESET && !PRESETS[PRESET]) { console.error(`--preset must be one of: ${Object.keys(PRESETS).join(', ')}`); process.exit(1); }
+if (!['premultiplied', 'straight'].includes(ALPHA)) { console.error("--alpha must be 'premultiplied' or 'straight'"); process.exit(1); }
 if (Object.keys(saved).length) console.log(`settings.json: ${JSON.stringify(saved)}`);
 const palette = PRESET ? `preset=${PRESET}`
   : (COLOR_A || COLOR_B) ? `colorA=${COLOR_A || '-'} colorB=${COLOR_B || '-'}`
   : `hueA=${HUE_A} hueB=${HUE_B}`;
 console.log(`config: ${SIZE}px ${FPS}fps codec=${CODEC} style=${STYLE} ${palette} `
-          + `bounce=${BOUNCE} glow=${GLOW} blob=${BLOB} range=${RANGE}`);
+          + `alpha=${ALPHA} bounce=${BOUNCE} glow=${GLOW} blob=${BLOB} range=${RANGE}`);
 mkdirSync(OUTDIR, { recursive: true });
 
 // ---- 1. decode audio to mono float32 PCM ----------------------------------
@@ -111,8 +117,17 @@ const write = (buf) => new Promise((res, rej) => {
 console.log('rendering...');
 for (const f of frames) {
   viz.draw(ctx, f, avatar);
-  // Canvas2D gives us straight (non-premultiplied) RGBA, which is what ProRes 4444 wants.
-  await write(Buffer.from(ctx.getImageData(0, 0, SIZE, SIZE).data.buffer));
+  const px = ctx.getImageData(0, 0, SIZE, SIZE).data;   // straight RGBA from Canvas2D
+  if (ALPHA === 'premultiplied') {
+    for (let i = 0; i < px.length; i += 4) {
+      const a = px[i + 3];
+      if (a === 255) continue;
+      if (a === 0) { px[i] = px[i + 1] = px[i + 2] = 0; continue; }
+      const m = a / 255;
+      px[i] *= m; px[i + 1] *= m; px[i + 2] *= m;
+    }
+  }
+  await write(Buffer.from(px.buffer));
   if (f.i % Math.max(1, Math.floor(frames.length / 10)) === 0) {
     process.stdout.write(`\r  ${Math.round(f.i / frames.length * 100)}%  (${f.i}/${frames.length})   `);
   }
@@ -128,7 +143,11 @@ if (!flag('no-preview')) {
     '-y', '-v', 'error',
     '-f', 'lavfi', '-i', `color=c=0x11141c:s=${SIZE}x${SIZE}:r=${FPS}`,
     '-i', MOV, '-i', AUDIO,
-    '-filter_complex', '[0:v][1:v]overlay=shortest=1,format=yuv420p[v]',
+    // ffmpeg's overlay expects straight alpha, so undo the premultiply first,
+    // otherwise the preview double-multiplies and the glow comes out too dark.
+    '-filter_complex', ALPHA === 'premultiplied'
+      ? '[1:v]unpremultiply=inplace=1[fg];[0:v][fg]overlay=shortest=1,format=yuv420p[v]'
+      : '[0:v][1:v]overlay=shortest=1,format=yuv420p[v]',
     '-map', '[v]', '-map', '2:a', '-c:v', 'libx264', '-crf', '18', '-preset', 'fast',
     '-c:a', 'aac', '-b:a', '160k', '-shortest', PREVIEW,
   ]);

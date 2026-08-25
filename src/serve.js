@@ -34,6 +34,7 @@ const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'applicati
                 '.wav':'audio/wav', '.mp4':'video/mp4', '.mov':'video/quicktime' };
 
 const CODECS = ['prores', 'hevc', 'png'];
+const ALPHAS = ['premultiplied', 'straight'];
 const jobs = new Map();      // jobId -> { state, pct, output, error, log }
 const uploads = new Map();   // uploadId -> absolute path
 
@@ -61,6 +62,8 @@ function buildArgs(body) {
   if (body.style && !STYLES[body.style]) throw new Error(`unknown style: ${body.style}`);
   if (body.preset && !PRESETS[body.preset]) throw new Error(`unknown preset: ${body.preset}`);
   if (body.codec && !CODECS.includes(body.codec)) throw new Error(`unknown codec: ${body.codec}`);
+  if (body.alpha && !ALPHAS.includes(body.alpha)) throw new Error(`unknown alpha mode: ${body.alpha}`);
+  if (body.alpha) out.push('--alpha', body.alpha);
   if (body.style) out.push('--style', body.style);
   if (body.preset) out.push('--preset', body.preset);
   out.push('--codec', body.codec || 'hevc');
