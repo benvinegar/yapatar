@@ -59,6 +59,10 @@ cd $ROOT && node src/render.js --audio ~/take01.wav --avatar ~/me.png --codec he
 
 It prints the resolved `config:` line — check it matches what the user tuned.
 
+Alternatively the user can press **🎬 Render the final file** in the page and get a download
+link without a terminal — the browser uploads the bytes to the local server, which runs the
+same renderer. Use that when they have no path handy for their files.
+
 **5. Report the output path**: `out/avatar_alpha.mov` (silent, transparent) and
 `out/preview.mp4` (flattened + audio, for eyeballing).
 

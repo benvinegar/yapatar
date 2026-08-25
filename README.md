@@ -34,6 +34,11 @@ open http://localhost:8777/preview.html
 Chrome pauses the render loop for background tabs, so **bring the window to the front**
 before pressing play — otherwise it looks frozen.
 
+Press **🎬 Render the final file** and the page uploads your audio and avatar to the local
+server, which shells out to the renderer and streams progress back; you get a download link
+when it finishes. No terminal, and no need to know where your files live — the browser hands
+over the bytes, not a path.
+
 Press **💾 Save settings for the agent** and the current values land in `settings.json`,
 which `render.js` picks up automatically (explicit CLI flags still win). Open the page with
 query params to preconfigure it: `preview.html?hueA=200&glow=140`.
@@ -134,6 +139,23 @@ at once. That's comfortable, but it grows linearly — a multi-hour file would n
    a corner. The clip is silent; keep using your original audio track.
 5. Because the render is frame-locked to the audio file, it stays in sync as long as the
    overlay starts at the same timecode as that audio.
+
+### The server
+
+`src/serve.js` also exposes the render pipeline over HTTP:
+
+| | |
+|---|---|
+| `POST /upload?name=x.wav` | raw body, returns `{id}` |
+| `POST /render` | `{audioId, avatarId, style, preset, codec, ...}` -> `{jobId}` |
+| `GET /job/:id` | `{state, pct, output, error}` |
+| `GET/POST /settings` | the tuned values |
+
+It spawns subprocesses, so it is deliberately locked down: bound to `127.0.0.1` only,
+requests carrying a foreign `Origin` are rejected, and nothing reaches a shell — `render.js`
+is spawned with an argv array, `style`/`preset`/`codec` are checked against allowlists, and
+every numeric field is coerced and clamped. Uploads land in `.uploads/` and rendered jobs in
+`out/web/<jobId>/`; both are gitignored and safe to delete.
 
 ## Using it from Claude Code
 

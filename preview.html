@@ -29,6 +29,10 @@
   #status.live   { background:#182a1f; color:#7fd1a0; }
   #meter { height:6px; background:#1b2130; border-radius:3px; overflow:hidden; margin-bottom:10px; }
   #meter i { display:block; height:100%; width:0%; background:linear-gradient(90deg,#3fa9f5,#a56cf5); transition:width .05s; }
+  hr { border:0; border-top:1px solid #232a38; margin:16px 0; }
+  #rprog { height:6px; background:#1b2130; border-radius:3px; overflow:hidden; margin:8px 0; display:none; }
+  #rprog i { display:block; height:100%; width:0%; background:#44BDA3; transition:width .3s; }
+  #rstatus a { color:#7fd1a0; }
 </style>
 <div id="stage"><canvas id="c" width="512" height="512"></canvas></div>
 <aside>
@@ -68,6 +72,17 @@
   <button id="copy">Copy command</button>
   <button id="save">💾 Save settings for the agent</button>
   <div id="saved" class="hint"></div>
+
+  <hr>
+  <label>Output codec</label>
+  <select id="codec">
+    <option value="hevc">hevc — small (~1.3 GB / 30 min)</option>
+    <option value="prores">prores 4444 — huge (~27 GB / 30 min)</option>
+    <option value="png">png — lossless RGBA</option>
+  </select>
+  <button id="render">🎬 Render the final file</button>
+  <div id="rprog"><i></i></div>
+  <div id="rstatus" class="hint"></div>
 </aside>
 
 <script type="module">
@@ -233,5 +248,59 @@ $('save').onclick = async () => {
     $('saved').textContent = 'save failed - are you running `node src/serve.js`?';
   }
 };
+// --- render on the server ---------------------------------------------------
+// The browser cannot hand Node a file path, but it can hand it the bytes.
+async function blobFor(input, fallbackUrl) {
+  const f = input.files && input.files[0];
+  if (f) return [f, f.name];
+  const r = await fetch(fallbackUrl);
+  return [await r.blob(), fallbackUrl.split('/').pop()];
+}
+
+async function upload(blob, name) {
+  const r = await fetch(`/upload?name=${encodeURIComponent(name)}`, { method: 'POST', body: blob });
+  if (!r.ok) throw new Error((await r.json()).error || 'upload failed');
+  return (await r.json()).id;
+}
+
+$('render').onclick = async () => {
+  const btn = $('render'), st = $('rstatus');
+  btn.disabled = true; $('rprog').style.display = 'block'; st.textContent = 'uploading…';
+  try {
+    const [aBlob, aName] = await blobFor($('audioFile'), '/assets/voice.wav');
+    const [vBlob, vName] = await blobFor($('avatarFile'), '/assets/avatar.png');
+    const [audioId, avatarId] = await Promise.all([upload(aBlob, aName), upload(vBlob, vName)]);
+
+    const body = { audioId, avatarId, codec: $('codec').value, style: $('style').value };
+    if ($('preset').value) body.preset = $('preset').value;
+    else { body.hueA = +$('hueA').value; body.hueB = +$('hueB').value; }
+    for (const k of ['bounce','glow','blob','range']) body[k] = +$(k).value;
+
+    const r = await fetch('/render', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    const { jobId, error } = await r.json();
+    if (!jobId) throw new Error(error || 'could not start render');
+
+    st.textContent = 'rendering…';
+    const poll = setInterval(async () => {
+      const j = await (await fetch(`/job/${jobId}`)).json();
+      $('rprog').querySelector('i').style.width = j.pct + '%';
+      if (j.state === 'done') {
+        clearInterval(poll); btn.disabled = false;
+        st.innerHTML = `done — <a href="${j.output}" download>download avatar_alpha.mov</a>`;
+      } else if (j.state === 'error') {
+        clearInterval(poll); btn.disabled = false;
+        st.textContent = `failed: ${j.error}`;
+      } else {
+        st.textContent = `rendering… ${j.pct}%`;
+      }
+    }, 500);
+  } catch (e) {
+    btn.disabled = false;
+    st.textContent = `failed: ${e.message} — is \`node src/serve.js\` running?`;
+  }
+};
+
 tick();
 </script>
