@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Yapper — live preview</title>
+<title>Yapatar — live preview</title>
 <style>
   :root { color-scheme: dark; }
   body { margin:0; overflow:hidden; background:#0d1017; color:#c9d2e3; font:14px/1.5 -apple-system,system-ui,sans-serif;
@@ -14,6 +14,8 @@
   input[type=range] { width:100%; }
   input[type=text] { width:100%; box-sizing:border-box; padding:7px 8px; background:#0c0f16;
         color:#c9d2e3; border:1px solid #2c3548; border-radius:6px; font:12px ui-monospace,Menlo,monospace; }
+  select { width:100%; padding:7px 8px; background:#1b2130; color:#c9d2e3;
+        border:1px solid #2c3548; border-radius:6px; font:inherit; margin:4px 0; }
   button, input[type=file] { width:100%; margin:6px 0; padding:8px; background:#1b2130; color:#c9d2e3;
         border:1px solid #2c3548; border-radius:6px; font:inherit; }
   button:hover { background:#232b3d; }
@@ -30,7 +32,7 @@
 </style>
 <div id="stage"><canvas id="c" width="512" height="512"></canvas></div>
 <aside>
-  <h1>Yapper — live</h1>
+  <h1>Yapatar — live</h1>
   <div id="status" class="idle">idle — press play or enable the mic</div>
   <div id="meter"><i></i></div>
   <button id="play">▶ Play test audio</button>
@@ -39,6 +41,20 @@
   <label>Audio file</label><input type="file" id="audioFile" accept="audio/*,video/*">
   <label>Folder those files live in (browsers hide the real path)</label>
   <input type="text" id="folder" placeholder="~/Recordings" spellcheck="false">
+
+  <label>Style</label>
+  <select id="style">
+    <option value="pulse">pulse — glow, rings, waveform</option>
+    <option value="constellation">constellation — QAM symbol lattice</option>
+    <option value="waterfall">waterfall — radial spectrogram</option>
+    <option value="packets">packets — framed data bursts</option>
+    <option value="handshake">handshake — carrier + symbols + packets</option>
+  </select>
+  <label>Palette</label>
+  <select id="preset">
+    <option value="">default (hue sliders below)</option>
+    <option value="modem">modem.dev — teal + cream</option>
+  </select>
 
   <label>Hue A <span id="hueAv"></span></label><input type="range" id="hueA" min="0" max="360" value="190">
   <label>Hue B <span id="hueBv"></span></label><input type="range" id="hueB" min="0" max="360" value="285">
@@ -58,13 +74,15 @@
 import { createVisualizer } from './src/visual.js';
 
 const KEYS = ['hueA','hueB','bounce','glow','blob','range'];
+const CHOICES = ['style','preset'];
 
 function applySettings(obj) {
-  for (const k of KEYS) if (obj[k] != null && document.getElementById(k)) document.getElementById(k).value = obj[k];
+  for (const k of [...KEYS, ...CHOICES])
+    if (obj[k] != null && document.getElementById(k)) document.getElementById(k).value = obj[k];
 }
 {
   const qs = new URLSearchParams(location.search);
-  if ([...qs.keys()].some(k => KEYS.includes(k))) {
+  if ([...qs.keys()].some(k => KEYS.includes(k) || CHOICES.includes(k))) {
     applySettings(Object.fromEntries(qs));         // agent-supplied wins
   } else {
     fetch('/settings').then(r => r.ok ? r.json() : {}).then(applySettings).catch(() => {});
@@ -72,7 +90,8 @@ function applySettings(obj) {
 }
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-const viz = createVisualizer({ size: 512 });
+let viz = createVisualizer({ size: 512 });
+let vizKey = '';
 const $ = id => document.getElementById(id);
 
 let avatar = new Image();
@@ -162,6 +181,11 @@ let mode = 'idle';
 function setMode(m, text) { mode = m; statusEl.textContent = text; statusEl.className = m === 'idle' ? 'idle' : 'live'; }
 
 function tick() {
+  const key = `${$('style').value}|${$('preset').value}`;
+  if (key !== vizKey) {
+    vizKey = key;
+    viz = createVisualizer({ size: 512, style: $('style').value, preset: $('preset').value || undefined });
+  }
   viz.cfg.hueA = +$('hueA').value; $('hueAv').textContent = viz.cfg.hueA;
   viz.cfg.hueB = +$('hueB').value; $('hueBv').textContent = viz.cfg.hueB;
   viz.cfg.bounce = +$('bounce').value / 100; $('bouncev').textContent = viz.cfg.bounce.toFixed(2);
@@ -177,9 +201,12 @@ function tick() {
     const rest = tilde ? full.slice(2) : full;
     return (tilde ? '~/' : '') + `'${rest.replace(/'/g, `'\\''`)}'`;
   };
+  const palette = $('preset').value
+    ? `  --preset ${$('preset').value} \\\n`
+    : `  --hueA ${$('hueA').value} --hueB ${$('hueB').value} \\\n`;
   $('cmd').textContent = 'node src/render.js \\\n'
     + `  --audio ${q(audioName)} \\\n  --avatar ${q(avatarName)} \\\n`
-    + `  --hueA ${$('hueA').value} --hueB ${$('hueB').value} \\\n`
+    + `  --style ${$('style').value} \\\n` + palette
     + `  --bounce ${$('bounce').value} --glow ${$('glow').value} --blob ${$('blob').value} \\\n`
     + `  --range ${$('range').value}`;
   const f = features();
@@ -192,6 +219,7 @@ $('copy').onclick = () => navigator.clipboard.writeText($('cmd').textContent.rep
   .then(() => { $('copy').textContent = 'Copied ✓'; setTimeout(() => $('copy').textContent = 'Copy command', 1400); });
 $('save').onclick = async () => {
   const body = Object.fromEntries(KEYS.map(k => [k, +$(k).value]));
+  for (const k of CHOICES) if ($(k).value) body[k] = $(k).value;
   body.audio = audioName; body.avatar = avatarName;
   const dir = $('folder').value.trim().replace(/\/+$/, '');
   if (dir) body.folder = dir;

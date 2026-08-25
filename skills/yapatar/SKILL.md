@@ -1,15 +1,15 @@
 ---
-name: yapper
+name: yapatar
 description: Create a voice-reactive avatar overlay video with a transparent background, for compositing into a screencast in DaVinci Resolve / Premiere / Final Cut. Use when the user wants an animated avatar that pulses with their voice, a talking-head replacement, an audio-reactive logo or waveform overlay, or asks to avoid showing their face on camera.
 ---
 
-# Yapper
+# Yapatar
 
 Turns a voice recording + an avatar image into a **transparent-background video** of the
 avatar pulsing with the voice — glow, rings that fire on transients, a spectrum-deformed
 outline, a waveform ring. The user composites it over their screencast.
 
-Project root: `~/Projects/yapper` (referred to below as `$ROOT`). If it is missing,
+Project root: `~/Projects/yapatar` (referred to below as `$ROOT`). If it is missing,
 ask the user where it lives rather than guessing.
 
 ## First run
@@ -36,8 +36,12 @@ propose a style without touching the user's sliders:
 http://localhost:8777/preview.html?hueA=200&hueB=310&glow=140&blob=14
 ```
 
-Params: `hueA` `hueB` (0-360), `bounce` (0-30), `glow` (0-200), `blob` (0-30),
-`range` (6-30, lower = more per-syllable movement).
+Params: `style`, `preset`, `hueA` `hueB` (0-360), `bounce` (0-30), `glow` (0-200),
+`blob` (0-30), `range` (6-30, lower = more per-syllable movement).
+
+Styles: `pulse` (default), `constellation` (QAM symbol lattice), `waterfall` (radial
+spectrogram), `packets` (framed data bursts), `handshake` (carrier lock + symbols).
+Palettes: `--preset modem` is the modem.dev teal/cream. Or set `--colorA`/`--colorB` hex.
 
 Tell the user to **bring the Chrome window to the front and press ▶ Play test audio or
 🎙 Use microphone** — Chrome pauses the render loop and suspends audio for background tabs,
@@ -71,8 +75,9 @@ rendering a long take as ProRes.
 
 ## Options
 
-`--audio` `--avatar` `--outdir` `--fps` `--size` `--codec` `--gain` `--range`
-`--hueA` `--hueB` `--bounce` `--glow` `--blob` `--no-preview` `--settings <path>`
+`--audio` `--avatar` `--outdir` `--fps` `--size` `--codec` `--gain` `--range` `--style`
+`--preset` `--colorA` `--colorB` `--hueA` `--hueB` `--bounce` `--glow` `--blob`
+`--no-preview` `--settings <path>`
 
 Point `--audio` at the screen recording itself if the voice is in it — ffmpeg extracts the
 audio, which also guarantees sync.

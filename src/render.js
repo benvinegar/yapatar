@@ -9,7 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { mkdirSync, existsSync } from 'node:fs';
 import { buildFrames } from './audio.js';
-import { createVisualizer } from './visual.js';
+import { createVisualizer, STYLES, PRESETS } from './visual.js';
 
 import { readFileSync } from 'node:fs';
 
@@ -39,10 +39,19 @@ const BOUNCE = +arg('bounce', 9) / 100;
 const GLOW   = +arg('glow', 100) / 100;
 const BLOB   = +arg('blob', 9) / 100;
 const RANGE  = +arg('range', 13);
+const STYLE  = arg('style', 'pulse');
+const PRESET = arg('preset', null);
+const COLOR_A = arg('colorA', null);
+const COLOR_B = arg('colorB', null);
 
 if (!existsSync(AUDIO)) { console.error(`no such audio: ${AUDIO}`); process.exit(1); }
+if (!STYLES[STYLE]) { console.error(`--style must be one of: ${Object.keys(STYLES).join(', ')}`); process.exit(1); }
+if (PRESET && !PRESETS[PRESET]) { console.error(`--preset must be one of: ${Object.keys(PRESETS).join(', ')}`); process.exit(1); }
 if (Object.keys(saved).length) console.log(`settings.json: ${JSON.stringify(saved)}`);
-console.log(`config: ${SIZE}px ${FPS}fps codec=${CODEC} hueA=${HUE_A} hueB=${HUE_B} `
+const palette = PRESET ? `preset=${PRESET}`
+  : (COLOR_A || COLOR_B) ? `colorA=${COLOR_A || '-'} colorB=${COLOR_B || '-'}`
+  : `hueA=${HUE_A} hueB=${HUE_B}`;
+console.log(`config: ${SIZE}px ${FPS}fps codec=${CODEC} style=${STYLE} ${palette} `
           + `bounce=${BOUNCE} glow=${GLOW} blob=${BLOB} range=${RANGE}`);
 mkdirSync(OUTDIR, { recursive: true });
 
@@ -69,6 +78,8 @@ const ctx = canvas.getContext('2d');
 const viz = createVisualizer({
   size: SIZE, hueA: HUE_A, hueB: HUE_B,
   bounce: BOUNCE, glow: GLOW, blobAmount: BLOB,
+  style: STYLE, preset: PRESET,
+  ...(COLOR_A ? { colorA: COLOR_A } : {}), ...(COLOR_B ? { colorB: COLOR_B } : {}),
 });
 
 // Alpha-capable encoders. All three carry real transparency into an NLE;

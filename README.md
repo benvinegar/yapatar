@@ -1,4 +1,4 @@
-# Yapper
+# Yapatar
 
 <p align="center">
   <img src="assets/demo.gif" width="240" alt="An avatar pulsing in time with a voice recording">
@@ -41,6 +41,36 @@ query params to preconfigure it: `preview.html?hueA=200&glow=140`.
 Sliders for hue, bounce, glow, blob amount and sensitivity, driven by a file **or your
 microphone**. `src/visual.js` is shared by the preview and the renderer, so what you tune
 is exactly what renders.
+
+## Styles
+
+```
+--style pulse | constellation | waterfall | packets | handshake
+```
+
+![the five styles](assets/styles.png)
+
+Left to right, all shown in the `modem` palette:
+
+- **pulse** — glow, rings on transients, spectrum-deformed outline, waveform ring. The default.
+- **constellation** — a QAM constellation diagram, which is how a modem actually encodes
+  bits onto a carrier: each symbol is a point in amplitude/phase space, and noise smears the
+  cluster. Loud clean speech snaps the lattice tight; silence lets it drift.
+- **waterfall** — a radial spectrogram. Each frame pushes the current spectrum outward, so
+  the last ~1.5 s of your voice trails away from the avatar. The one that most obviously
+  reads as *that is my sound*.
+- **packets** — transients emit framed bursts of dashes travelling outward, each burst with
+  its own bit pattern, like data on the wire.
+- **handshake** — a carrier arc that sweeps while searching and locks when you speak,
+  combined with symbols and packets.
+
+### Palettes
+
+```
+--preset modem            # modem.dev teal #44BDA3 + cream #F8F8ED
+--colorA '#44BDA3' --colorB '#F8F8ED'
+--hueA 190 --hueB 285     # or drive it by hue
+```
 
 ## Options
 
@@ -107,7 +137,7 @@ at once. That's comfortable, but it grows linearly — a multi-hour file would n
 
 ## Using it from Claude Code
 
-This project doubles as a plugin. `skills/yapper/SKILL.md` teaches an agent the
+This project doubles as a plugin. `skills/yapatar/SKILL.md` teaches an agent the
 whole loop: start the server, open a preconfigured preview, wait for you to tune and save,
 then render with your values. It's symlinked into `~/.claude/skills/`, so it's live now —
 just ask for a voice-reactive avatar overlay.
