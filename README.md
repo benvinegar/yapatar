@@ -34,6 +34,11 @@ open http://localhost:8777/preview.html
 Chrome pauses the render loop for background tabs, so **bring the window to the front**
 before pressing play — otherwise it looks frozen.
 
+The stage has **Behind** and **Size** toggles: preview the overlay over transparency, black,
+white or a footage-like gradient, and at full / half / corner size. A corner avatar is far
+smaller than 512px, and an effect that reads well full-size can turn to mush down there —
+so check it at the size it will actually ship at. Both choices persist.
+
 Your avatar image is remembered across reloads in `localStorage` (downscaled to 512px, which
 is more than the visual uses), so you only pick it once — the render uses the remembered
 image too, not the default. There's a **forget** link next to it. Audio is not remembered:

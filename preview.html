@@ -2,70 +2,210 @@
 <meta charset="utf-8">
 <title>Yapatar — live preview</title>
 <style>
-  :root { color-scheme: dark; }
-  body { margin:0; overflow:hidden; background:#0d1017; color:#c9d2e3; font:14px/1.5 -apple-system,system-ui,sans-serif;
-         display:grid; grid-template-columns:1fr 300px; height:100vh; }
-  #stage { display:grid; place-items:center; background:
-      repeating-conic-gradient(#181c26 0 25%, #1f2530 0 50%) 0 0/32px 32px; }
-  canvas { width:512px; height:512px; }
-  aside { padding:18px; overflow:auto; background:#11141c; border-left:1px solid #232a38; }
-  h1 { font-size:15px; margin:0 0 14px; letter-spacing:.02em; }
-  label { display:block; margin:12px 0 2px; font-size:12px; color:#8d99ae; }
-  input[type=range] { width:100%; }
-  select { width:100%; padding:7px 8px; background:#1b2130; color:#c9d2e3;
-        border:1px solid #2c3548; border-radius:6px; font:inherit; margin:4px 0; }
-  button, input[type=file] { width:100%; margin:6px 0; padding:8px; background:#1b2130; color:#c9d2e3;
-        border:1px solid #2c3548; border-radius:6px; font:inherit; }
-  button:hover { background:#232b3d; }
-  code { background:#1b2130; padding:1px 5px; border-radius:4px; font-size:12px; }
-  .hint { color:#6b7689; font-size:11.5px; margin-top:14px; }
-  #status { font-size:12px; padding:6px 9px; border-radius:6px; margin-bottom:8px; }
-  #status.idle   { background:#241c1c; color:#d69a8a; }
-  #status.live   { background:#182a1f; color:#7fd1a0; }
-  #meter { height:6px; background:#1b2130; border-radius:3px; overflow:hidden; margin-bottom:10px; }
-  #meter i { display:block; height:100%; width:0%; background:linear-gradient(90deg,#3fa9f5,#a56cf5); transition:width .05s; }
-  hr { border:0; border-top:1px solid #232a38; margin:16px 0; }
-  #rprog { height:6px; background:#1b2130; border-radius:3px; overflow:hidden; margin:8px 0; display:none; }
-  #rprog i { display:block; height:100%; width:0%; background:#44BDA3; transition:width .3s; }
-  #rstatus a { color:#7fd1a0; }
+  :root {
+    color-scheme: dark;
+    --black:   #0A0B0A;         /* modem.dev warm black */
+    --teal:    #44BDA3;
+    --cream:   #F8F8ED;
+    --panel:   #111312;
+    --raised:  #171A19;
+    --line:    #232725;
+    --text:    #E8E9E4;
+    --dim:     #8A928C;
+    --radius:  10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; overflow: hidden;
+    background: var(--black); color: var(--text);
+    font: 13px/1.5 ui-sans-serif, -apple-system, system-ui, sans-serif;
+    display: grid; grid-template-columns: 1fr 348px;
+  }
+
+  /* ---------- stage ---------- */
+  #stage { position: relative; display: grid; place-items: center; min-width: 0; }
+  #surface {
+    display: grid; place-items: center; border-radius: 14px;
+    /* fixed so the backdrop stays constant when you switch preview sizes -
+       otherwise the thing you are judging the overlay against shrinks with it */
+    width: 568px; height: 568px;
+    transition: background .2s;
+  }
+  #surface.checker {
+    background:
+      repeating-conic-gradient(#1a1d1b 0 25%, #101211 0 50%) 0 0 / 28px 28px;
+  }
+  #surface.dark  { background: #0A0B0A; }
+  #surface.light { background: #E9E6DD; }
+  #surface.photo {
+    background: radial-gradient(120% 120% at 30% 20%, #C8B49B 0%, #7C8AA0 55%, #2C3440 100%);
+  }
+  canvas { width: 512px; height: 512px; display: block; transition: width .2s, height .2s; }
+
+  .stagebar {
+    position: absolute; top: 20px; left: 20px; display: flex; gap: 16px; align-items: center;
+  }
+  .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+  .seg button {
+    all: unset; padding: 5px 11px; border-radius: 6px; font-size: 11.5px; color: var(--dim);
+    cursor: pointer; letter-spacing: .02em;
+  }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed="true"] { background: var(--raised); color: var(--cream); box-shadow: inset 0 0 0 1px var(--line); }
+  .segLabel { font-size: 10.5px; text-transform: uppercase; letter-spacing: .10em; color: #5F665F; }
+
+  /* ---------- sidebar ---------- */
+  aside {
+    background: var(--panel); border-left: 1px solid var(--line);
+    overflow-y: auto; overflow-x: hidden; padding: 22px 20px 40px;
+  }
+  aside::-webkit-scrollbar { width: 10px; }
+  aside::-webkit-scrollbar-thumb { background: #222624; border-radius: 6px; border: 3px solid var(--panel); }
+
+  .brand { display: flex; align-items: baseline; gap: 8px; margin-bottom: 18px; }
+  .brand b { font-size: 15px; font-weight: 650; letter-spacing: -.01em; color: var(--cream); }
+  .brand span { font-size: 11px; color: var(--dim); }
+
+  h2 {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .11em;
+    color: #5F665F; font-weight: 600; margin: 24px 0 10px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  h2:first-of-type { margin-top: 0; }
+
+  label { display: flex; justify-content: space-between; align-items: baseline;
+          margin: 12px 0 5px; font-size: 12px; color: var(--dim); }
+  label b { font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+
+  /* status pill */
+  #status { display: flex; align-items: center; gap: 8px; font-size: 12px;
+            padding: 8px 11px; border-radius: 8px; border: 1px solid var(--line); }
+  #status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  #status.idle { background: #17130F; color: #C99A6E; border-color: #2E2418; }
+  #status.idle::before { background: #C99A6E; }
+  #status.live { background: #0F1A15; color: var(--teal); border-color: #1D3A30; }
+  #status.live::before { background: var(--teal); box-shadow: 0 0 0 3px rgba(68,189,163,.18); }
+
+  #meter { height: 4px; background: #1B1F1D; border-radius: 2px; overflow: hidden; margin: 8px 0 14px; }
+  #meter i { display: block; height: 100%; width: 0%;
+             background: linear-gradient(90deg, var(--teal), #7FD9C4); transition: width .05s; }
+
+  /* controls */
+  button, select {
+    width: 100%; font: inherit; color: var(--text); background: var(--raised);
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 12px;
+    cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  button:hover:not(:disabled), select:hover { background: #1E2220; border-color: #2E3330; }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%),
+                      linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+    background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+    padding-right: 32px;
+  }
+  #render {
+    background: var(--teal); border-color: var(--teal); color: #06231C;
+    font-weight: 600; margin-top: 4px;
+  }
+  #render:hover:not(:disabled) { background: #55CFB4; border-color: #55CFB4; }
+
+  input[type=file] {
+    width: 100%; font: inherit; color: var(--dim); background: var(--raised);
+    border: 1px dashed #2E3330; border-radius: var(--radius); padding: 8px 10px; cursor: pointer;
+  }
+  input[type=file]:hover { border-color: var(--teal); color: var(--text); }
+  input[type=file]::file-selector-button {
+    font: inherit; margin-right: 10px; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer;
+  }
+
+  input[type=range] { appearance: none; width: 100%; height: 18px; background: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 3px; border-radius: 2px; background: #262B28;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 14px; height: 14px; margin-top: -5.5px;
+    border-radius: 50%; background: var(--cream); border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5); transition: transform .12s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.15); }
+  input[type=range]:active::-webkit-slider-thumb { background: var(--teal); }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0 0; }
+  .hint { color: #6B726C; font-size: 11.5px; margin-top: 8px; }
+  .hint a { color: var(--teal); }
+  #avatarNote { margin-top: 7px; }
+  #avatarNote a { color: var(--dim); text-decoration: underline; }
+  #rprog { height: 4px; background: #1B1F1D; border-radius: 2px; overflow: hidden; margin: 10px 0 0; display: none; }
+  #rprog i { display: block; height: 100%; width: 0%; background: var(--teal); transition: width .3s; }
 </style>
-<div id="stage"><canvas id="c" width="512" height="512"></canvas></div>
+
+<div id="stage">
+  <div class="stagebar">
+    <span class="segLabel">Behind</span>
+    <div class="seg" id="bgseg">
+      <button data-bg="checker" aria-pressed="true">alpha</button>
+      <button data-bg="dark">dark</button>
+      <button data-bg="light">light</button>
+      <button data-bg="photo">footage</button>
+    </div>
+    <span class="segLabel">Size</span>
+    <div class="seg" id="sizeseg">
+      <button data-size="512" aria-pressed="true">full</button>
+      <button data-size="256">half</button>
+      <button data-size="140">corner</button>
+    </div>
+  </div>
+  <div id="surface" class="checker"><canvas id="c" width="512" height="512"></canvas></div>
+</div>
+
 <aside>
-  <h1>Yapatar — live</h1>
+  <div class="brand"><b>Yapatar</b> <span>live preview</span></div>
+
   <div id="status" class="idle">idle — press play or enable the mic</div>
   <div id="meter"><i></i></div>
-  <button id="play">▶ Play test audio</button>
-  <button id="mic">🎙 Use microphone</button>
-  <label>Avatar image</label><input type="file" id="avatarFile" accept="image/*">
-  <div id="avatarNote" class="hint"></div>
-  <label>Audio file</label><input type="file" id="audioFile" accept="audio/*,video/*">
+  <div class="row">
+    <button id="play">▶ Test audio</button>
+    <button id="mic">🎙 Microphone</button>
+  </div>
 
+  <h2>Source</h2>
+  <label>Avatar image</label>
+  <input type="file" id="avatarFile" accept="image/*">
+  <div id="avatarNote" class="hint"></div>
+  <label>Audio file</label>
+  <input type="file" id="audioFile" accept="audio/*,video/*">
+
+  <h2>Look</h2>
   <label>Style</label>
   <select id="style">
     <option value="pulse">pulse — glow, rings, waveform</option>
-    <option value="constellation">constellation — QAM symbol lattice</option>
+    <option value="constellation">constellation — QAM lattice</option>
     <option value="waterfall">waterfall — radial spectrogram</option>
     <option value="packets">packets — framed data bursts</option>
-    <option value="handshake">handshake — carrier + symbols + packets</option>
+    <option value="handshake">handshake — carrier + symbols</option>
   </select>
   <label>Palette</label>
   <select id="preset">
-    <option value="">default (hue sliders below)</option>
+    <option value="">default — hue sliders</option>
     <option value="modem">modem.dev — teal + cream</option>
   </select>
+  <label>Hue A <b id="hueAv"></b></label><input type="range" id="hueA" min="0" max="360" value="190">
+  <label>Hue B <b id="hueBv"></b></label><input type="range" id="hueB" min="0" max="360" value="285">
 
-  <label>Hue A <span id="hueAv"></span></label><input type="range" id="hueA" min="0" max="360" value="190">
-  <label>Hue B <span id="hueBv"></span></label><input type="range" id="hueB" min="0" max="360" value="285">
-  <label>Bounce <span id="bouncev"></span></label><input type="range" id="bounce" min="0" max="30" value="9">
-  <label>Glow <span id="glowv"></span></label><input type="range" id="glow" min="0" max="200" value="100">
-  <label>Blob amount <span id="blobv"></span></label><input type="range" id="blob" min="0" max="30" value="9">
-  <label>Sensitivity (dB range) <span id="rangev"></span></label><input type="range" id="range" min="6" max="30" value="13">
+  <h2>Motion</h2>
+  <label>Bounce <b id="bouncev"></b></label><input type="range" id="bounce" min="0" max="30" value="9">
+  <label>Glow <b id="glowv"></b></label><input type="range" id="glow" min="0" max="200" value="100">
+  <label>Blob amount <b id="blobv"></b></label><input type="range" id="blob" min="0" max="30" value="9">
+  <label>Sensitivity <b id="rangev"></b></label><input type="range" id="range" min="6" max="30" value="13">
 
-  <button id="save">💾 Save settings for the agent</button>
-  <div id="saved" class="hint"></div>
-
-  <hr>
-  <label>Output codec</label>
+  <h2>Export</h2>
+  <label>Codec</label>
   <select id="codec">
     <option value="hevc">hevc — small (~1.3 GB / 30 min)</option>
     <option value="prores">prores 4444 — huge (~27 GB / 30 min)</option>
@@ -74,6 +214,10 @@
   <button id="render">🎬 Render the final file</button>
   <div id="rprog"><i></i></div>
   <div id="rstatus" class="hint"></div>
+
+  <hr>
+  <button id="save" style="margin-top:16px">💾 Save settings for the agent</button>
+  <div id="saved" class="hint"></div>
 </aside>
 
 <script type="module">
@@ -341,4 +485,27 @@ $('render').onclick = async () => {
 };
 
 tick();
+// --- stage controls ---------------------------------------------------------
+// Judging an overlay means seeing it over what it will actually sit on, and at
+// the size it will actually appear - a corner avatar is far smaller than 512px.
+function segment(id, apply) {
+  const seg = document.getElementById(id);
+  seg.onclick = (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    for (const b of seg.querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === btn));
+    apply(btn.dataset);
+    try { localStorage.setItem('yapatar.' + id, btn.dataset.bg || btn.dataset.size); } catch {}
+  };
+  try {
+    const saved = localStorage.getItem('yapatar.' + id);
+    if (saved) {
+      const btn = seg.querySelector(`[data-bg="${saved}"], [data-size="${saved}"]`);
+      if (btn) btn.click();
+    }
+  } catch {}
+}
+segment('bgseg',   (d) => { $('surface').className = d.bg; });
+segment('sizeseg', (d) => { const cv = $('c'); cv.style.width = cv.style.height = d.size + 'px'; });
+
 </script>
