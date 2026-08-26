@@ -76,8 +76,16 @@ same renderer. Use that when they have no path handy for their files.
   positioned, or use `--no-audio`.
 - `out/preview_opaque.mp4` — flattened onto a solid background for eyeballing only.
 
-If the user reports **a hard-edged grey or dark rectangle** around the overlay, they have
-almost certainly imported `preview_opaque.mp4`. Check before investigating anything else.
+If the user reports **a hard-edged grey or dark rectangle** around the overlay, the file is
+probably fine and the NLE is ignoring the alpha. Ask in this order:
+1. the clip's **composite mode** (Resolve: Inspector -> Settings -> Composite; must be a mode
+   that respects alpha) - this is the usual answer
+2. whether they imported `preview_opaque.mp4` instead of `avatar_alpha.mov`
+3. the codec - some tools silently ignore Apple HEVC alpha; `--codec prores` always works
+
+Verify the file before chasing the renderer: extract a frame with ffmpeg and check the area
+outside the effects is transparent rather than black.
+
 A soft circular haze is a different issue (glow spread); a bright white halo is an alpha
 premultiply mismatch.
 

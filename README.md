@@ -122,14 +122,30 @@ The overlay carries the source audio (PCM, bit-identical to your input) so you c
 up against the screencast by waveform, or let Resolve auto-sync. Mute or unlink that track
 once it's positioned — otherwise you'll hear it twice. `--no-audio` renders it silent.
 
-### A grey box around the overlay?
+### A hard-edged box around the overlay?
 
-You imported `preview_opaque.mp4`. It is a flattened check file with a solid background baked
-in, so it composites as a hard-edged rectangle. Use `avatar_alpha.mov` — its corner pixels are
-`rgba(0,0,0,0)`, genuinely invisible.
+Almost always the NLE ignoring the alpha channel rather than anything wrong with the file.
+In rough order of likelihood:
 
-If the box is a soft *glow* rather than a hard-edged rectangle, that is a different problem —
-see below. If it is a bright white halo, see the alpha section.
+1. **Composite mode.** In Resolve, select the clip → Inspector → Settings → **Composite**, and
+   make sure the mode is one that respects alpha (Normal). If it is ignoring alpha you get
+   the clip's opaque base layer, which is a solid rectangle.
+2. **You imported `preview_opaque.mp4`.** That is the flattened check file, opaque by design.
+   The overlay is `avatar_alpha.mov`.
+3. **The codec.** `--codec hevc` relies on Apple HEVC-with-alpha, which some tools read and
+   some silently ignore. `--codec prores` (ProRes 4444) is the bulletproof option if you hit
+   trouble — bigger, but no app disagrees about it.
+
+To check the file itself rather than the NLE:
+
+```bash
+ffmpeg -i out/avatar_alpha.mov -vf "select=eq(n\,50)" -frames:v 1 -update 1 /tmp/f.png
+```
+
+Open `/tmp/f.png` — the area outside the effects should be transparent, not black.
+
+A soft circular haze instead of a hard edge is a different problem (glow spread, below), and a
+bright white halo is an alpha premultiply mismatch (further below).
 
 ### Keeping the frame transparent
 
