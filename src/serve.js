@@ -64,6 +64,7 @@ function buildArgs(body) {
   if (body.codec && !CODECS.includes(body.codec)) throw new Error(`unknown codec: ${body.codec}`);
   if (body.alpha && !ALPHAS.includes(body.alpha)) throw new Error(`unknown alpha mode: ${body.alpha}`);
   if (body.alpha) out.push('--alpha', body.alpha);
+  if (body.noAudio === true) out.push('--no-audio');
   if (body.style) out.push('--style', body.style);
   if (body.preset) out.push('--preset', body.preset);
   out.push('--codec', body.codec || 'hevc');

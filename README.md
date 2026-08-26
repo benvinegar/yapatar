@@ -21,7 +21,7 @@ Produces:
 
 | file | what |
 |---|---|
-| `out/avatar_alpha.mov` | ProRes 4444 w/ alpha, **silent** — this is the overlay |
+| `out/avatar_alpha.mov` | ProRes 4444 w/ alpha, **with the source audio** — this is the overlay |
 | `out/preview.mp4` | flattened on a dark background + audio, just for eyeballing |
 
 ## Live preview (tune the look)
@@ -97,6 +97,12 @@ Left to right, all shown in the `modem` palette:
 Every one of these matches a slider in `preview.html`, which prints the exact command
 for your current settings with a copy button — tune visually, paste, render.
 ```
+
+### Audio
+
+The overlay carries the source audio (PCM, bit-identical to your input) so you can line it
+up against the screencast by waveform, or let Resolve auto-sync. Mute or unlink that track
+once it's positioned — otherwise you'll hear it twice. `--no-audio` renders it silent.
 
 ### Alpha: premultiplied vs straight
 

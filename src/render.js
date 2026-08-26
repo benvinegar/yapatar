@@ -48,6 +48,10 @@ const COLOR_B = arg('colorB', null);
 // compositor adds the full-brightness colour on top instead of scaling it, which
 // blows soft glows out to white. So we premultiply on the way out by default.
 const ALPHA  = arg('alpha', 'premultiplied');
+// Carry the source audio in the overlay clip by default: it makes lining the
+// overlay up with the screencast trivial (align by waveform, or let Resolve
+// auto-sync), and muting one track in an NLE is a click. --no-audio for silent.
+const WITH_AUDIO = !flag('no-audio');
 
 if (!existsSync(AUDIO)) { console.error(`no such audio: ${AUDIO}`); process.exit(1); }
 if (!STYLES[STYLE]) { console.error(`--style must be one of: ${Object.keys(STYLES).join(', ')}`); process.exit(1); }
@@ -58,7 +62,7 @@ const palette = PRESET ? `preset=${PRESET}`
   : (COLOR_A || COLOR_B) ? `colorA=${COLOR_A || '-'} colorB=${COLOR_B || '-'}`
   : `hueA=${HUE_A} hueB=${HUE_B}`;
 console.log(`config: ${SIZE}px ${FPS}fps codec=${CODEC} style=${STYLE} ${palette} `
-          + `alpha=${ALPHA} bounce=${BOUNCE} glow=${GLOW} blob=${BLOB} range=${RANGE}`);
+          + `audio=${WITH_AUDIO ? 'yes' : 'silent'} alpha=${ALPHA} bounce=${BOUNCE} glow=${GLOW} blob=${BLOB} range=${RANGE}`);
 mkdirSync(OUTDIR, { recursive: true });
 
 // ---- 1. decode audio to mono float32 PCM ----------------------------------
@@ -67,7 +71,14 @@ console.log(`decoding ${AUDIO}...`);
 const dec = spawnSync('ffmpeg', [
   '-v', 'error', '-i', AUDIO, '-f', 'f32le', '-ac', '1', '-ar', String(SR), '-',
 ], { maxBuffer: 1 << 30 });
-if (dec.status !== 0) { console.error(dec.stderr.toString()); process.exit(1); }
+if (dec.status !== 0) {
+  const err = dec.stderr.toString();
+  console.error(/Output file .* does not contain any stream|Error opening output/i.test(err)
+    ? `${AUDIO} has no audio stream to react to.`
+    : err.trim());
+  process.exit(1);
+}
+if (dec.stdout.length === 0) { console.error(`${AUDIO} decoded to no audio.`); process.exit(1); }
 const pcm = new Float32Array(dec.stdout.buffer, dec.stdout.byteOffset, dec.stdout.length / 4);
 const duration = pcm.length / SR;
 console.log(`  ${duration.toFixed(2)}s @ ${SR}Hz`);
@@ -106,7 +117,10 @@ const MOV = `${OUTDIR}/avatar_alpha.mov`;
 const ff = spawn('ffmpeg', [
   '-y', '-v', 'error',
   '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${SIZE}x${SIZE}`, '-r', String(FPS), '-i', '-',
+  ...(WITH_AUDIO ? ['-i', AUDIO] : []),
   ...CODECS[CODEC],
+  // PCM rather than AAC: this is an editing deliverable, not a distribution file
+  ...(WITH_AUDIO ? ['-map', '0:v:0', '-map', '1:a:0', '-c:a', 'pcm_s16le', '-shortest'] : []),
   MOV,
 ], { stdio: ['pipe', 'inherit', 'inherit'] });
 

@@ -63,8 +63,9 @@ Alternatively the user can press **🎬 Render the final file** in the page and 
 link without a terminal — the browser uploads the bytes to the local server, which runs the
 same renderer. Use that when they have no path handy for their files.
 
-**5. Report the output path**: `out/avatar_alpha.mov` (silent, transparent) and
-`out/preview.mp4` (flattened + audio, for eyeballing).
+**5. Report the output path**: `out/avatar_alpha.mov` (transparent, and carrying the source
+audio so it can be lined up by waveform — remind the user to mute that track once positioned,
+or `--no-audio` for a silent overlay) and `out/preview.mp4` (flattened, for eyeballing).
 
 ## Choosing a codec
 
@@ -81,7 +82,7 @@ rendering a long take as ProRes.
 
 `--audio` `--avatar` `--outdir` `--fps` `--size` `--codec` `--gain` `--range` `--style`
 `--preset` `--colorA` `--colorB` `--hueA` `--hueB` `--bounce` `--glow` `--blob` `--alpha`
-`--no-preview` `--settings <path>`
+`--no-audio` `--no-preview` `--settings <path>`
 
 Point `--audio` at the screen recording itself if the voice is in it — ffmpeg extracts the
 audio, which also guarantees sync.

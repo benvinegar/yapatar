@@ -12,17 +12,12 @@
   h1 { font-size:15px; margin:0 0 14px; letter-spacing:.02em; }
   label { display:block; margin:12px 0 2px; font-size:12px; color:#8d99ae; }
   input[type=range] { width:100%; }
-  input[type=text] { width:100%; box-sizing:border-box; padding:7px 8px; background:#0c0f16;
-        color:#c9d2e3; border:1px solid #2c3548; border-radius:6px; font:12px ui-monospace,Menlo,monospace; }
   select { width:100%; padding:7px 8px; background:#1b2130; color:#c9d2e3;
         border:1px solid #2c3548; border-radius:6px; font:inherit; margin:4px 0; }
   button, input[type=file] { width:100%; margin:6px 0; padding:8px; background:#1b2130; color:#c9d2e3;
         border:1px solid #2c3548; border-radius:6px; font:inherit; }
   button:hover { background:#232b3d; }
   code { background:#1b2130; padding:1px 5px; border-radius:4px; font-size:12px; }
-  #cmd { background:#0c0f16; border:1px solid #232a38; border-radius:6px; padding:9px;
-         font:11.5px/1.55 ui-monospace,Menlo,monospace; color:#9fd0f5; white-space:pre-wrap;
-         word-break:break-all; margin:6px 0; }
   .hint { color:#6b7689; font-size:11.5px; margin-top:14px; }
   #status { font-size:12px; padding:6px 9px; border-radius:6px; margin-bottom:8px; }
   #status.idle   { background:#241c1c; color:#d69a8a; }
@@ -43,8 +38,6 @@
   <button id="mic">🎙 Use microphone</button>
   <label>Avatar image</label><input type="file" id="avatarFile" accept="image/*">
   <label>Audio file</label><input type="file" id="audioFile" accept="audio/*,video/*">
-  <label>Folder those files live in (browsers hide the real path)</label>
-  <input type="text" id="folder" placeholder="~/Recordings" spellcheck="false">
 
   <label>Style</label>
   <select id="style">
@@ -67,9 +60,6 @@
   <label>Blob amount <span id="blobv"></span></label><input type="range" id="blob" min="0" max="30" value="9">
   <label>Sensitivity (dB range) <span id="rangev"></span></label><input type="range" id="range" min="6" max="30" value="13">
 
-  <p class="hint">Tune here, then run this to render the alpha-channel file with exactly these settings:</p>
-  <pre id="cmd"></pre>
-  <button id="copy">Copy command</button>
   <button id="save">💾 Save settings for the agent</button>
   <div id="saved" class="hint"></div>
 
@@ -207,47 +197,27 @@ function tick() {
   viz.cfg.glow = +$('glow').value / 100; $('glowv').textContent = viz.cfg.glow.toFixed(2);
   viz.cfg.blobAmount = +$('blob').value / 100; $('blobv').textContent = viz.cfg.blobAmount.toFixed(2);
   $('rangev').textContent = $('range').value + ' dB';
-  const dir = $('folder').value.trim().replace(/\/+$/, '');
-  const q = (n) => {
-    const full = (dir && !n.startsWith('assets/')) ? `${dir}/${n}` : n;
-    if (!/[\s'"$&()]/.test(full)) return full;
-    // keep a leading ~/ outside the quotes, or the shell won't expand it
-    const tilde = full.startsWith('~/');
-    const rest = tilde ? full.slice(2) : full;
-    return (tilde ? '~/' : '') + `'${rest.replace(/'/g, `'\\''`)}'`;
-  };
-  const palette = $('preset').value
-    ? `  --preset ${$('preset').value} \\\n`
-    : `  --hueA ${$('hueA').value} --hueB ${$('hueB').value} \\\n`;
-  $('cmd').textContent = 'node src/render.js \\\n'
-    + `  --audio ${q(audioName)} \\\n  --avatar ${q(avatarName)} \\\n`
-    + `  --style ${$('style').value} \\\n` + palette
-    + `  --bounce ${$('bounce').value} --glow ${$('glow').value} --blob ${$('blob').value} \\\n`
-    + `  --range ${$('range').value}`;
   const f = features();
   meterEl.style.width = (f.level * 100).toFixed(1) + '%';
   if (mode === 'file' && f.level < 0.01 && playing && playing.ended) setMode('idle', 'idle — press play or enable the mic');
   viz.draw(ctx, f, avatar.complete ? avatar : null);
   requestAnimationFrame(tick);
 }
-$('copy').onclick = () => navigator.clipboard.writeText($('cmd').textContent.replace(/\\\n\s+/g, ' '))
-  .then(() => { $('copy').textContent = 'Copied ✓'; setTimeout(() => $('copy').textContent = 'Copy command', 1400); });
 $('save').onclick = async () => {
   const body = Object.fromEntries(KEYS.map(k => [k, +$(k).value]));
   for (const k of CHOICES) if ($(k).value) body[k] = $(k).value;
   body.audio = audioName; body.avatar = avatarName;
-  const dir = $('folder').value.trim().replace(/\/+$/, '');
-  if (dir) body.folder = dir;
   try {
     const r = await fetch('/settings', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     const j = await r.json();
-    $('saved').textContent = j.ok ? `saved -> settings.json` : `save failed: ${j.error}`;
-  } catch (e) {
+    $('saved').textContent = j.ok ? 'saved -> settings.json' : `save failed: ${j.error}`;
+  } catch {
     $('saved').textContent = 'save failed - are you running `node src/serve.js`?';
   }
 };
+
 // --- render on the server ---------------------------------------------------
 // The browser cannot hand Node a file path, but it can hand it the bytes.
 async function blobFor(input, fallbackUrl) {
@@ -298,7 +268,7 @@ $('render').onclick = async () => {
     }, 500);
   } catch (e) {
     btn.disabled = false;
-    st.textContent = `failed: ${e.message} — is \`node src/serve.js\` running?`;
+    st.textContent = `failed: ${e.message}`;
   }
 };
 
