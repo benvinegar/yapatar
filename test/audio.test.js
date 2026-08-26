@@ -52,3 +52,29 @@ test('analysis is deterministic', () => {
   const b = buildFrames(pcm, SR, 30, {}).map(f => f.level);
   assert.deepEqual(a, b);
 });
+
+test('a steady tone fires no transients', () => {
+  // Regression: the envelope used to start at zero, so its ramp-up read as one
+  // enormous attack and every render opened with a burst of rings that was not
+  // in the audio at all.
+  const frames = buildFrames(tone(220, 3, 0.4), SR, 30, {});
+  const hits = frames.filter(f => f.attack > 0.42).length;
+  assert.equal(hits, 0, `steady audio should not pulse, got ${hits} transients`);
+  assert.ok(frames[0].attack < 0.05, `frame 0 attack was ${frames[0].attack}`);
+});
+
+test('leading silence stays completely still', () => {
+  const pcm = new Float32Array(SR * 3);
+  const speech = tone(220, 2, 0.4);
+  pcm.set(speech, SR);                       // 1s of silence, then audio
+  const lead = buildFrames(pcm, SR, 30, {}).slice(0, 30);
+  assert.ok(lead.every(f => f.level === 0), 'silence must not pulse');
+  assert.ok(lead.every(f => f.attack === 0), 'silence must not fire transients');
+});
+
+test('silence never normalises up into a pulse', () => {
+  const nearSilent = new Float32Array(SR);
+  nearSilent[1000] = 0.02;                   // one tiny blip, otherwise silent
+  const frames = buildFrames(nearSilent, SR, 30, {});
+  assert.ok(frames.every(f => f.level === 0));
+});

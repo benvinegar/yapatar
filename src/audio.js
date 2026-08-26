@@ -106,7 +106,10 @@ export function buildFrames(pcm, sampleRate, fps, { gain = 1, range = 13, gate =
   });
 
   const frames = [];
-  let lvl = 0, env = 0;
+  // Prime the envelope with the first frame's loudness. Starting from zero
+  // makes the attack/release ramp look like one enormous transient, so every
+  // render used to open with a burst of rings that is not in the audio.
+  let lvl = norm[0] ?? 0, env = 0;
   const ATTACK = 0.55, RELEASE = 0.10;   // fast up, slow down - feels like speech
   for (let i = 0; i < total; i++) {
     const target = norm[i];

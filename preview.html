@@ -337,6 +337,7 @@ $('play').onclick = async () => {
   source.connect(analyser); analyser.connect(AC.destination);
   el.onended = () => setMode('idle', 'idle — press play or enable the mic');
   await el.play();
+  primed = false;
   setMode('file', '▶ playing — you should see it pulse');
 };
 $('mic').onclick = async () => {
@@ -346,13 +347,18 @@ $('mic').onclick = async () => {
   source = AC.createMediaStreamSource(s);
   source.connect(analyser);   // not connected to destination: no feedback loop
   playing = null;
+  primed = false;
   setMode('mic', '🎙 mic live — talk and watch it react');
 };
 
 // --- browser-side feature extraction, mirroring src/audio.js -----------------
 const SPEC_BINS = 64;
 const spectrum = new Float32Array(SPEC_BINS);
-let lvl = 0, env = 0, ceilDb = -20, floorDb = -45, i = 0;
+let lvl = 0, env = 0, ceilDb = -20, floorDb = -45, i = 0, primed = false;
+// Matches src/audio.js: calibration is relative, so it needs an absolute
+// anchor. Without one, a quiet room's noise floor slowly becomes "loud" and
+// the avatar jitters at nothing.
+const SILENCE_DB = -60;
 
 function features() {
   analyser.getFloatFrequencyData(freq);
@@ -361,14 +367,22 @@ function features() {
   let sum = 0; for (let k = 0; k < time.length; k++) sum += time[k] * time[k];
   const db = 20 * Math.log10(Math.sqrt(sum / time.length) + 1e-9);
 
-  // adaptive calibration: track a decaying loud-ceiling for this session
-  ceilDb = db > ceilDb ? db : ceilDb * 0.9995 + db * 0.0005;
+  // adaptive calibration: track a decaying loud-ceiling for this session,
+  // never letting it sink into the noise floor
+  ceilDb = db > ceilDb ? db : Math.max(SILENCE_DB, ceilDb * 0.9995 + db * 0.0005);
   const range = +$('range').value;
   floorDb = ceilDb - range;
 
-  let v = Math.max(0, Math.min(1, (db - floorDb) / range));
-  v = v < 0.04 ? 0 : (v - 0.04) / 0.96;
-  const target = Math.pow(v, 0.85);
+  let target = 0;
+  if (db > SILENCE_DB) {
+    let v = Math.max(0, Math.min(1, (db - floorDb) / range));
+    v = v < 0.04 ? 0 : (v - 0.04) / 0.96;
+    target = Math.pow(v, 0.85);
+  }
+  // Jump straight to the first audible level instead of ramping up from zero:
+  // that ramp reads as one huge transient and fires a burst of rings that is
+  // not in the audio.
+  if (!primed && target > 0) { lvl = target; primed = true; }
   const prev = lvl;
   lvl += (target - lvl) * (target > lvl ? 0.55 : 0.10);
   env = Math.max(env * 0.86, Math.max(0, lvl - prev) * 6);
