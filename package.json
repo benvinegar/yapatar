@@ -17,12 +17,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/benvinegar/yapatar.git"
+    "url": "git+https://github.com/modem-dev/yapatar.git"
   },
   "bugs": {
-    "url": "https://github.com/benvinegar/yapatar/issues"
+    "url": "https://github.com/modem-dev/yapatar/issues"
   },
-  "homepage": "https://github.com/benvinegar/yapatar#readme",
+  "homepage": "https://github.com/modem-dev/yapatar#readme",
   "keywords": [
     "screencast",
     "avatar",
@@ -32,5 +32,6 @@
     "video-overlay",
     "davinci-resolve",
     "waveform"
-  ]
+  ],
+  "author": "Modem (https://modem.dev)"
 }
