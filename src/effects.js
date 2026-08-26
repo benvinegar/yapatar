@@ -6,12 +6,18 @@
 
 export function glow(ctx, s) {
   const { C, orbR, level, col, cfg } = s;
-  const r = orbR * (1.25 + level * 0.85);
-  const g = ctx.createRadialGradient(C, C, orbR * 0.85, C, C, r);
-  const a = (0.12 + level * 0.5) * cfg.glow;
-  g.addColorStop(0, col('a', a));
-  g.addColorStop(0.55, col('b', a * 0.35));
-  g.addColorStop(1, col('b', 0));
+  // A wide, slowly-fading glow covers most of the frame in low alpha, which
+  // composites over footage as a flat grey wash - it reads as a translucent
+  // box rather than a floating avatar. So: hug the orb, and fall off fast
+  // enough that the outer half of the frame is genuinely empty.
+  const r = orbR * (1.06 + level * 0.42);
+  const g = ctx.createRadialGradient(C, C, orbR * 0.94, C, C, r);
+  const a = (0.05 + level * 0.34) * cfg.glow;
+  g.addColorStop(0,    col('a', a));
+  g.addColorStop(0.30, col('a', a * 0.42));
+  g.addColorStop(0.60, col('b', a * 0.12));
+  g.addColorStop(0.85, col('b', a * 0.02));
+  g.addColorStop(1,    col('b', 0));
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(C, C, r, 0, Math.PI * 2); ctx.fill();
 }

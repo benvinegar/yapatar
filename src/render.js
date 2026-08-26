@@ -139,11 +139,16 @@ console.log('rendering...');
 for (const f of frames) {
   viz.draw(ctx, f, avatar);
   const px = ctx.getImageData(0, 0, SIZE, SIZE).data;   // straight RGBA from Canvas2D
-  if (ALPHA === 'premultiplied') {
-    for (let i = 0; i < px.length; i += 4) {
-      const a = px[i + 3];
-      if (a === 255) continue;
-      if (a === 0) { px[i] = px[i + 1] = px[i + 2] = 0; continue; }
+  // Alpha below this is invisible on its own but, spread across most of the
+  // frame, composites as a flat film that makes the overlay read as a
+  // translucent box. Snap it to fully transparent.
+  const FLOOR = 4;
+  const premultiply = ALPHA === 'premultiplied';
+  for (let i = 0; i < px.length; i += 4) {
+    const a = px[i + 3];
+    if (a === 255) continue;
+    if (a < FLOOR) { px[i] = px[i + 1] = px[i + 2] = px[i + 3] = 0; continue; }
+    if (premultiply) {
       const m = a / 255;
       px[i] *= m; px[i + 1] *= m; px[i + 2] *= m;
     }

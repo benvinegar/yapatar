@@ -122,6 +122,21 @@ The overlay carries the source audio (PCM, bit-identical to your input) so you c
 up against the screencast by waveform, or let Resolve auto-sync. Mute or unlink that track
 once it's positioned — otherwise you'll hear it twice. `--no-audio` renders it silent.
 
+### Keeping the frame transparent
+
+Everything outside the effects is fully transparent, and that is worth guarding. A wide,
+slowly-fading glow puts low alpha across most of the frame, which composites as a flat grey
+film — the overlay stops reading as a floating avatar and starts looking like a translucent
+box sitting on your footage. Two things prevent it:
+
+- the glow hugs the avatar and falls off steeply, rather than spreading to the frame edge
+- alpha below 4/255 is snapped to zero on output; invisible on its own, but across half a
+  frame it is exactly that grey film
+
+On a loud frame two thirds of the output is now fully transparent, against 29% before.
+If you want a bigger halo, raise `--glow` — that scales intensity without spreading haze
+back across the frame.
+
 ### Alpha: premultiplied vs straight
 
 ```
