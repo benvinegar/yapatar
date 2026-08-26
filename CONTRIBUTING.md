@@ -42,4 +42,4 @@ Two rules for anything in `effects.js` or `visual.js`:
 
 - `npm test` passes
 - If you touched the renderer, eyeball an actual render — `npm run render` then look at
-  `out/preview.mp4`. Alpha bugs in particular do not show up in unit tests.
+  `out/preview_opaque.mp4`. Alpha bugs in particular do not show up in unit tests.

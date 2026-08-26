@@ -4,7 +4,7 @@
 //
 // Outputs (into out/):
 //   avatar_alpha.mov  ProRes 4444, transparent background, silent -> drag into Resolve
-//   preview.mp4       flattened over a dark checkerboard + audio, for eyeballing
+//   preview_opaque.mp4  flattened onto a solid background, for eyeballing only
 import { spawn, spawnSync } from 'node:child_process';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { mkdirSync, existsSync } from 'node:fs';
@@ -160,11 +160,11 @@ for (const f of frames) {
 }
 ff.stdin.end();
 await new Promise((res, rej) => ff.on('close', (c) => c === 0 ? res() : rej(new Error(`ffmpeg exit ${c}`))));
-console.log(`\rwrote ${MOV} (${CODEC})            `);
+console.log(`\r                                        `);
 
 // ---- 4. flattened preview with audio ---------------------------------------
 if (!flag('no-preview')) {
-  const PREVIEW = `${OUTDIR}/preview.mp4`;
+  const PREVIEW = `${OUTDIR}/preview_opaque.mp4`;
   const r = spawnSync('ffmpeg', [
     '-y', '-v', 'error',
     '-f', 'lavfi', '-i', `color=c=0x11141c:s=${SIZE}x${SIZE}:r=${FPS}`,
@@ -178,5 +178,14 @@ if (!flag('no-preview')) {
     '-c:a', 'aac', '-b:a', '160k', '-shortest', PREVIEW,
   ]);
   if (r.status !== 0) console.error(r.stderr.toString());
-  else console.log(`wrote ${PREVIEW}`);
 }
+
+console.log('');
+console.log('  OVERLAY  ' + MOV);
+console.log('           transparent background - this is the file to import into your editor');
+if (!flag('no-preview')) {
+  console.log('  CHECK    ' + `${OUTDIR}/preview_opaque.mp4`);
+  console.log('           flattened onto a solid background so you can eyeball it.');
+  console.log('           It is OPAQUE. Importing this is what puts a grey box on your footage.');
+}
+console.log('');

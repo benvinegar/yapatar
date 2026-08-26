@@ -29,8 +29,8 @@ Produces:
 
 | file | what |
 |---|---|
-| `out/avatar_alpha.mov` | ProRes 4444 w/ alpha, **with the source audio** — this is the overlay |
-| `out/preview.mp4` | flattened on a dark background + audio, just for eyeballing |
+| `out/avatar_alpha.mov` | ProRes 4444 w/ alpha + the source audio. **This is the file you import.** |
+| `out/preview_opaque.mp4` | The same thing flattened onto a solid background, so you can watch it in any player. It is **opaque** — importing this is what puts a grey box on your footage. |
 
 ## Live preview (tune the look)
 
@@ -121,6 +121,15 @@ for your current settings with a copy button — tune visually, paste, render.
 The overlay carries the source audio (PCM, bit-identical to your input) so you can line it
 up against the screencast by waveform, or let Resolve auto-sync. Mute or unlink that track
 once it's positioned — otherwise you'll hear it twice. `--no-audio` renders it silent.
+
+### A grey box around the overlay?
+
+You imported `preview_opaque.mp4`. It is a flattened check file with a solid background baked
+in, so it composites as a hard-edged rectangle. Use `avatar_alpha.mov` — its corner pixels are
+`rgba(0,0,0,0)`, genuinely invisible.
+
+If the box is a soft *glow* rather than a hard-edged rectangle, that is a different problem —
+see below. If it is a bright white halo, see the alpha section.
 
 ### Keeping the frame transparent
 

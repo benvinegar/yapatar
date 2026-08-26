@@ -70,9 +70,16 @@ Alternatively the user can press **🎬 Render the final file** in the page and 
 link without a terminal — the browser uploads the bytes to the local server, which runs the
 same renderer. Use that when they have no path handy for their files.
 
-**5. Report the output path**: `out/avatar_alpha.mov` (transparent, and carrying the source
-audio so it can be lined up by waveform — remind the user to mute that track once positioned,
-or `--no-audio` for a silent overlay) and `out/preview.mp4` (flattened, for eyeballing).
+**5. Report the output path.** Be explicit about which file is which:
+- `out/avatar_alpha.mov` — transparent, carries the source audio so it can be lined up by
+  waveform. **This is the one to import.** Remind them to mute that audio track once
+  positioned, or use `--no-audio`.
+- `out/preview_opaque.mp4` — flattened onto a solid background for eyeballing only.
+
+If the user reports **a hard-edged grey or dark rectangle** around the overlay, they have
+almost certainly imported `preview_opaque.mp4`. Check before investigating anything else.
+A soft circular haze is a different issue (glow spread); a bright white halo is an alpha
+premultiply mismatch.
 
 ## Choosing a codec
 
