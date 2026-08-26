@@ -37,6 +37,7 @@
   <button id="play">▶ Play test audio</button>
   <button id="mic">🎙 Use microphone</button>
   <label>Avatar image</label><input type="file" id="avatarFile" accept="image/*">
+  <div id="avatarNote" class="hint"></div>
   <label>Audio file</label><input type="file" id="audioFile" accept="audio/*,video/*">
 
   <label>Style</label>
@@ -102,10 +103,73 @@ const $ = id => document.getElementById(id);
 let avatar = new Image();
 avatar.src = 'assets/avatar.png';
 let avatarName = 'assets/avatar.png', audioName = 'assets/voice.wav';
+
+// --- remember the avatar across reloads -------------------------------------
+// Stored as a downscaled data URL: localStorage holds strings and is capped
+// around 5 MB, so a full-size photo would blow the quota. 512px is already the
+// most the visual can use, since the avatar is drawn circle-cropped at that size.
+const AVATAR_KEY = 'yapatar.avatar';
+let rememberedAvatar = null;   // { url, name }
+
+function loadRemembered() {
+  try {
+    const raw = localStorage.getItem(AVATAR_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return o && o.url ? o : null;
+  } catch { return null; }        // private windows and blocked storage throw
+}
+
+function rememberAvatar(img, name) {
+  try {
+    const S = 512;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    // cover-crop to a square so a wide photo isn't squashed
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    x.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2,
+                side, side, 0, 0, S, S);
+    let url = c.toDataURL('image/png');
+    if (url.length > 2_000_000) url = c.toDataURL('image/jpeg', 0.85);   // photos: drop alpha, stay small
+    localStorage.setItem(AVATAR_KEY, JSON.stringify({ url, name }));
+    rememberedAvatar = { url, name };
+    showAvatarNote();
+  } catch (e) {
+    $('avatarNote').textContent = 'could not remember this image (storage full or blocked)';
+  }
+}
+
+function showAvatarNote() {
+  const el = $('avatarNote');
+  if (!rememberedAvatar) { el.textContent = ''; return; }
+  el.innerHTML = `remembered: ${rememberedAvatar.name} — <a href="#" id="forget">forget</a>`;
+  $('forget').onclick = (ev) => {
+    ev.preventDefault();
+    try { localStorage.removeItem(AVATAR_KEY); } catch {}
+    rememberedAvatar = null;
+    avatarName = 'assets/avatar.png';
+    avatar.src = 'assets/avatar.png';
+    showAvatarNote();
+  };
+}
+
 $('avatarFile').onchange = e => {
   const f = e.target.files[0];
-  if (f) { avatar.src = URL.createObjectURL(f); avatarName = f.name; }
+  if (!f) return;
+  avatarName = f.name;
+  const url = URL.createObjectURL(f);
+  const probe = new Image();
+  probe.onload = () => { rememberAvatar(probe, f.name); URL.revokeObjectURL(url); };
+  probe.src = url;
+  avatar.src = url;
 };
+
+{
+  const r = loadRemembered();
+  if (r) { rememberedAvatar = r; avatar.src = r.url; avatarName = r.name; }
+  showAvatarNote();
+}
 
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 const analyser = AC.createAnalyser();
@@ -238,7 +302,11 @@ $('render').onclick = async () => {
   btn.disabled = true; $('rprog').style.display = 'block'; st.textContent = 'uploading…';
   try {
     const [aBlob, aName] = await blobFor($('audioFile'), '/assets/voice.wav');
-    const [vBlob, vName] = await blobFor($('avatarFile'), '/assets/avatar.png');
+    const [vBlob, vName] = $('avatarFile').files[0]
+      ? await blobFor($('avatarFile'), '/assets/avatar.png')
+      : rememberedAvatar
+        ? [await (await fetch(rememberedAvatar.url)).blob(), rememberedAvatar.name]
+        : await blobFor($('avatarFile'), '/assets/avatar.png');
     const [audioId, avatarId] = await Promise.all([upload(aBlob, aName), upload(vBlob, vName)]);
 
     const body = { audioId, avatarId, codec: $('codec').value, style: $('style').value };

@@ -34,6 +34,11 @@ open http://localhost:8777/preview.html
 Chrome pauses the render loop for background tabs, so **bring the window to the front**
 before pressing play — otherwise it looks frozen.
 
+Your avatar image is remembered across reloads in `localStorage` (downscaled to 512px, which
+is more than the visual uses), so you only pick it once — the render uses the remembered
+image too, not the default. There's a **forget** link next to it. Audio is not remembered:
+recordings are far too large for the ~5 MB storage budget.
+
 Press **🎬 Render the final file** and the page uploads your audio and avatar to the local
 server, which shells out to the renderer and streams progress back; you get a download link
 when it finishes. No terminal, and no need to know where your files live — the browser hands
