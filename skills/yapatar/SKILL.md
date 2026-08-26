@@ -9,14 +9,21 @@ Turns a voice recording + an avatar image into a **transparent-background video*
 avatar pulsing with the voice — glow, rings that fire on transients, a spectrum-deformed
 outline, a waveform ring. The user composites it over their screencast.
 
-Project root: `~/Projects/yapatar` (referred to below as `$ROOT`). If it is missing,
-ask the user where it lives rather than guessing.
+Project root (`$ROOT` below): find it, don't assume it. Try in order —
+1. the current working directory, if it contains `src/render.js` and a `package.json` named `yapatar`
+2. `~/Projects/yapatar`
+3. `find ~ -name render.js -path '*yapatar*' -maxdepth 6 2>/dev/null | head -1`
+
+If none hit, ask the user where they cloned it. Requires `ffmpeg` on PATH and Node 20+.
 
 ## First run
 
 ```bash
 cd $ROOT && [ -d node_modules ] || npm install
 ```
+
+`--codec hevc` needs `hevc_videotoolbox`, which is **macOS-only**. On Linux use `prores` or
+`png`; the renderer checks and says so rather than failing obscurely.
 
 ## The loop
 

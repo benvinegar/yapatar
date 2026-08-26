@@ -9,6 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { mkdirSync, existsSync } from 'node:fs';
 import { buildFrames } from './audio.js';
+import { ffmpegAvailable, checkCodec } from './preflight.js';
 import { createVisualizer, STYLES, PRESETS } from './visual.js';
 
 import { readFileSync } from 'node:fs';
@@ -53,10 +54,16 @@ const ALPHA  = arg('alpha', 'premultiplied');
 // auto-sync), and muting one track in an NLE is a click. --no-audio for silent.
 const WITH_AUDIO = !flag('no-audio');
 
+if (!ffmpegAvailable()) {
+  console.error('ffmpeg not found on PATH. Install it (macOS: brew install ffmpeg, Debian: apt install ffmpeg).');
+  process.exit(1);
+}
 if (!existsSync(AUDIO)) { console.error(`no such audio: ${AUDIO}`); process.exit(1); }
 if (!STYLES[STYLE]) { console.error(`--style must be one of: ${Object.keys(STYLES).join(', ')}`); process.exit(1); }
 if (PRESET && !PRESETS[PRESET]) { console.error(`--preset must be one of: ${Object.keys(PRESETS).join(', ')}`); process.exit(1); }
 if (!['premultiplied', 'straight'].includes(ALPHA)) { console.error("--alpha must be 'premultiplied' or 'straight'"); process.exit(1); }
+const codecProblem = checkCodec(CODEC);
+if (codecProblem) { console.error(codecProblem); process.exit(1); }
 if (Object.keys(saved).length) console.log(`settings.json: ${JSON.stringify(saved)}`);
 const palette = PRESET ? `preset=${PRESET}`
   : (COLOR_A || COLOR_B) ? `colorA=${COLOR_A || '-'} colorB=${COLOR_B || '-'}`

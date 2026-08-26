@@ -3,11 +3,34 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "render": "node src/render.js"
+    "render": "node src/render.js",
+    "serve": "node src/serve.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.8"
   },
   "description": "Voice-reactive avatar overlay with a transparent background, for screencasts",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benvinegar/yapatar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/benvinegar/yapatar/issues"
+  },
+  "homepage": "https://github.com/benvinegar/yapatar#readme",
+  "keywords": [
+    "screencast",
+    "avatar",
+    "audio-visualization",
+    "alpha-channel",
+    "ffmpeg",
+    "video-overlay",
+    "davinci-resolve",
+    "waveform"
+  ]
 }

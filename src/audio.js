@@ -91,8 +91,14 @@ export function buildFrames(pcm, sampleRate, fps, { gain = 1, range = 13, gate =
   const sorted = [...dbs].sort((a, b) => a - b);
   const pct = (p) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
   const ceilDb = pct(0.97);
-  const floorDb = Math.max(pct(0.10), ceilDb - range);
-  const norm = dbs.map(db => {
+  // Calibration is relative, so it needs an absolute anchor at the bottom:
+  // without one, digital silence would be normalised up into a full pulse.
+  const SILENCE_DB = -60;
+  // Above that, always keep at least 6 dB of span below the ceiling, or a
+  // signal with no dynamics (steady tone, heavily compressed VO) collapses
+  // floor onto ceiling and renders as silence.
+  const floorDb = Math.min(Math.max(pct(0.10), ceilDb - range), ceilDb - 6);
+  const norm = ceilDb < SILENCE_DB ? dbs.map(() => 0) : dbs.map(db => {
     let v = (db - floorDb) / Math.max(6, ceilDb - floorDb);
     v = Math.max(0, Math.min(1, v));
     v = v < gate ? 0 : (v - gate) / (1 - gate);

@@ -19,7 +19,7 @@ import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { randomUUID } from 'node:crypto';
 import { extname, join, normalize, basename } from 'node:path';
-import { STYLES, PRESETS } from './visual.js';
+import { buildRenderArgs } from './validate.js';
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
@@ -33,8 +33,6 @@ const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'applicati
                 '.png':'image/png', '.jpg':'image/jpeg', '.gif':'image/gif',
                 '.wav':'audio/wav', '.mp4':'video/mp4', '.mov':'video/quicktime' };
 
-const CODECS = ['prores', 'hevc', 'png'];
-const ALPHAS = ['premultiplied', 'straight'];
 const jobs = new Map();      // jobId -> { state, pct, output, error, log }
 const uploads = new Map();   // uploadId -> absolute path
 
@@ -43,41 +41,22 @@ const json = (res, code, obj) => {
   res.end(JSON.stringify(obj));
 };
 
-// --- validation -------------------------------------------------------------
-
-const num = (v, lo, hi, dflt) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
-};
-
-/** Build render.js argv from untrusted JSON. Anything unrecognised is dropped. */
-function buildArgs(body) {
-  const audio = uploads.get(body.audioId);
-  const avatar = uploads.get(body.avatarId);
-  if (!audio) throw new Error('no audio uploaded');
-
-  const out = ['--audio', audio];
-  if (avatar) out.push('--avatar', avatar);
-
-  if (body.style && !STYLES[body.style]) throw new Error(`unknown style: ${body.style}`);
-  if (body.preset && !PRESETS[body.preset]) throw new Error(`unknown preset: ${body.preset}`);
-  if (body.codec && !CODECS.includes(body.codec)) throw new Error(`unknown codec: ${body.codec}`);
-  if (body.alpha && !ALPHAS.includes(body.alpha)) throw new Error(`unknown alpha mode: ${body.alpha}`);
-  if (body.alpha) out.push('--alpha', body.alpha);
-  if (body.noAudio === true) out.push('--no-audio');
-  if (body.style) out.push('--style', body.style);
-  if (body.preset) out.push('--preset', body.preset);
-  out.push('--codec', body.codec || 'hevc');
-
-  for (const [k, lo, hi] of [['hueA',0,360], ['hueB',0,360], ['bounce',0,30],
-                             ['glow',0,200], ['blob',0,30], ['range',6,30],
-                             ['fps',1,120], ['size',64,2048]]) {
-    if (body[k] != null) out.push(`--${k}`, String(num(body[k], lo, hi, 0)));
-  }
-  return out;
-}
-
 // --- server -----------------------------------------------------------------
+
+/** Uploads and finished renders pile up otherwise; nothing here is meant to be kept. */
+async function sweep(dir, maxAgeMs = 24 * 60 * 60 * 1000) {
+  const { readdir, stat: statFile, rm } = await import('node:fs/promises');
+  let removed = 0;
+  for (const name of await readdir(dir).catch(() => [])) {
+    const path = join(dir, name);
+    const info = await statFile(path).catch(() => null);
+    if (info && Date.now() - info.mtimeMs > maxAgeMs) {
+      await rm(path, { recursive: true, force: true }).catch(() => {});
+      removed++;
+    }
+  }
+  return removed;
+}
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -124,7 +103,7 @@ const server = createServer(async (req, res) => {
       const parsed = JSON.parse(body);
       const jobId = randomUUID();
       const outdir = join(ROOT, 'out', 'web', jobId);
-      const args = [...buildArgs(parsed), '--outdir', outdir, '--no-preview'];
+      const args = [...buildRenderArgs(parsed, (id) => uploads.get(id)), '--outdir', outdir, '--no-preview'];
 
       const job = { state: 'running', pct: 0, output: null, error: null, log: '' };
       jobs.set(jobId, job);
@@ -168,7 +147,9 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '127.0.0.1', async () => {
   console.log(`preview:  http://localhost:${PORT}/preview.html`);
   console.log(`bound to 127.0.0.1 only - not reachable from the network`);
+  const swept = (await sweep(UPLOADS)) + (await sweep(join(ROOT, 'out', 'web')));
+  if (swept) console.log(`cleaned up ${swept} item(s) older than a day`);
 });

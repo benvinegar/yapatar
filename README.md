@@ -9,6 +9,14 @@ avatar pulsing with the voice — glow, expanding rings on transients, a spectru
 outline and a waveform scope ring. Drop the file into DaVinci Resolve (or Premiere / FCP)
 on a track above your screencast, scale it into a corner, done. No keying, no green screen.
 
+## Requirements
+
+- **Node 20+**
+- **ffmpeg** on your PATH — `brew install ffmpeg` / `apt install ffmpeg`
+- `--codec hevc` additionally needs `hevc_videotoolbox`, which is **macOS-only**. On Linux
+  use `--codec prores` or `--codec png`; the renderer checks up front and tells you which
+  codecs your ffmpeg actually supports instead of failing with a wall of output.
+
 ## Quick start
 
 ```bash
@@ -198,6 +206,17 @@ then render with your values. It's symlinked into `~/.claude/skills/`, so it's l
 just ask for a voice-reactive avatar overlay.
 
 To share it, `.claude-plugin/plugin.json` makes the repo installable as a plugin.
+
+## Development
+
+```bash
+npm test              # unit + end-to-end (ffmpeg-dependent tests skip if it is missing)
+npm run serve         # preview at http://localhost:8777/preview.html
+npm run render        # render with the bundled sample assets
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add an effect — it is one function plus a
+line in a style table, and the suite picks it up automatically.
 
 ## Licence
 
